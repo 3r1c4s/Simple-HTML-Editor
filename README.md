@@ -11,3 +11,7 @@ To use:
       + Your website will appear in a frame. 
       + Edit the text you want to change.
       + Generate your code. Copy and paste the code to your html document.
+
+
+Published on GitHub Pages:
+https://3r1c4s.github.io/Simple-HTML-Editor/editor.html

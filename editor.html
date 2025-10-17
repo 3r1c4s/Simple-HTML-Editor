@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual HTML Content Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for a better look and feel */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        #code-output {
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #1f2937;
+            color: #d1d5db;
+            border: none;
+            border-radius: 8px;
+        }
+        #preview-iframe {
+            width: 100%;
+            height: 600px; /* Provide a decent default height */
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+        }
+    </style>
+     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Visual Content Editor</h1>
+            <p class="text-slate-600 mt-2">Click on the text or images in the preview below to edit them directly.</p>
+        </header>
+
+        <!-- Main Grid Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- Left Column: Visual Editor/Preview -->
+            <div id="visual-editor" class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+                <div class="flex items-center justify-between mb-4 border-b pb-2">
+                    <h2 class="text-xl font-bold text-slate-700">Live Preview</h2>
+                    <div>
+                        <input type="file" id="css-upload" class="hidden" accept=".css">
+                        <button id="upload-css-btn" class="bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600 transition-colors text-sm shadow-sm mr-2">
+                            Upload CSS
+                        </button>
+                        <input type="file" id="html-upload" class="hidden" accept=".html, .htm">
+                        <button id="upload-btn" class="bg-sky-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors text-sm shadow-sm">
+                            Upload HTML
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- The live preview is now an iframe for perfect style isolation -->
+                <iframe id="preview-iframe"></iframe>
+
+            </div>
+
+            <!-- Right Column: Code Output -->
+            <div id="code-generator" class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+                <h2 class="text-xl font-bold mb-4 border-b pb-2 text-slate-700">Generated Code</h2>
+                <div class="flex space-x-2 mb-4">
+                    <button id="generate-btn" class="flex-grow bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-emerald-600 transition-colors">
+                        Generate HTML
+                    </button>
+                    <button id="copy-btn" class="flex-grow bg-slate-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-700 transition-colors">
+                        Copy Code
+                    </button>
+                </div>
+                <textarea id="code-output" class="w-full h-96 p-4 text-sm" readonly placeholder="Click 'Generate HTML' to see the code here..."></textarea>
+                 <div id="copy-feedback" class="text-center font-medium mt-2 h-6"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- DOM element references ---
+        const generateBtn = document.getElementById('generate-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const codeOutput = document.getElementById('code-output');
+        const copyFeedback = document.getElementById('copy-feedback');
+        const uploadBtn = document.getElementById('upload-btn');
+        const htmlUploadInput = document.getElementById('html-upload');
+        const uploadCssBtn = document.getElementById('upload-css-btn');
+        const cssUploadInput = document.getElementById('css-upload');
+        const previewIframe = document.getElementById('preview-iframe');
+
+        // --- State management ---
+        let currentCssContent = '';
+        let currentHtmlContent = `
+            <section class="text-center" style="padding: 1.5rem; font-family: sans-serif;">
+                <div style="margin-bottom: 1rem;">
+                    <img id="main-image" src="https://placehold.co/600x400/10b981/ffffff?text=Click+to+Edit" alt="Website hero image" style="border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); max-width: 28rem; margin: auto; cursor: pointer;">
+                </div>
+                <h1 id="main-headline" style="font-size: 1.875rem; font-weight: bold; color: #1f2937; margin-top: 1rem;">Welcome to Your Website</h1>
+                <p id="main-paragraph" style="color: #4b5563; margin-top: 0.5rem; margin-left: auto; margin-right: auto; max-width: 42rem;">This is a paragraph you can edit. Click on me to change the text. You can describe your product, service, or announcement here. Keep it concise and engaging!</p>
+                <a id="cta-button" href="#" style="margin-top: 1.5rem; display: inline-block; background-color: #10b981; color: white; font-weight: bold; padding: 0.5rem 1.5rem; border-radius: 0.5rem; text-decoration: none;">
+                   <span>Learn More</span>
+                </a>
+            </section>
+        `;
+
+        // --- Core Functions ---
+
+        /**
+         * Updates the iframe with the current HTML and CSS content.
+         */
+        function updateIframe() {
+            const iframeDoc = previewIframe.contentWindow.document;
+            const content = `
+                <html>
+                    <head>
+                        <style>
+                            /* Basic styles for a clean slate */
+                            body { margin: 0; }
+                            /* User-uploaded styles */
+                            ${currentCssContent}
+                        </style>
+                    </head>
+                    <body>
+                        ${currentHtmlContent}
+                    </body>
+                </html>
+            `;
+            iframeDoc.open();
+            iframeDoc.write(content);
+            iframeDoc.close();
+            // The onload event will handle making the content editable after it's loaded.
+        }
+
+        /**
+         * Attaches event listeners and attributes to make iframe content editable.
+         * This function runs after the iframe has loaded its content.
+         */
+        function makeContentEditable() {
+            const iframeDoc = previewIframe.contentWindow.document;
+            if (!iframeDoc || !iframeDoc.body) return;
+
+            // Add editor-specific styling for visual feedback
+            const editorStyle = iframeDoc.createElement('style');
+            editorStyle.textContent = `
+                [contenteditable] {
+                    outline: 2px dashed rgba(16, 185, 129, 0);
+                    transition: all 0.3s ease;
+                    border-radius: 4px;
+                    padding: 4px;
+                }
+                [contenteditable]:hover, [contenteditable]:focus {
+                    outline: 2px dashed #10b981 !important;
+                    background-color: rgba(16, 185, 129, 0.05) !important;
+                }
+            `;
+            iframeDoc.head.appendChild(editorStyle);
+            
+            // Make text elements editable
+            iframeDoc.body.querySelectorAll('h1, h2, h3, p, span, a, strong, em').forEach(el => {
+                el.setAttribute('contenteditable', 'true');
+            });
+            
+            // Handle image editing
+            iframeDoc.body.addEventListener('click', (e) => {
+                if (e.target && e.target.tagName === 'IMG') {
+                    e.preventDefault();
+                    const newImageUrl = prompt("Please enter the new image URL:", e.target.src);
+                    if (newImageUrl) {
+                        e.target.src = newImageUrl;
+                    }
+                }
+            });
+        }
+
+        /**
+         * Basic HTML formatter to add indentation for readability.
+         */
+        function formatHtml(htmlString) {
+            let indent = '  ';
+            let formatted = '';
+            let level = 0;
+            const nodes = htmlString.split(/(?=<[^/])|(?<=<\/[^>]+>)/);
+
+            nodes.forEach(node => {
+                node = node.trim();
+                if (!node) return;
+                if (node.startsWith('</')) level = Math.max(0, level - 1);
+                formatted += indent.repeat(level) + node + '\n';
+                if (node.startsWith('<') && !node.startsWith('</') && !node.endsWith('/>')) level++;
+            });
+            return formatted.trim();
+        }
+
+        // --- Event Listeners ---
+
+        // Generate HTML from the iframe's content
+        generateBtn.addEventListener('click', () => {
+            const iframeBody = previewIframe.contentWindow.document.body;
+            if (!iframeBody) {
+                codeOutput.value = "Error: Preview not loaded.";
+                return;
+            }
+            
+            const contentClone = iframeBody.cloneNode(true);
+            contentClone.querySelectorAll('[contenteditable="true"]').forEach(el => {
+                el.removeAttribute('contenteditable');
+            });
+            
+            codeOutput.value = formatHtml(contentClone.innerHTML);
+            copyFeedback.textContent = 'HTML Generated!';
+            copyFeedback.classList.add('text-green-600');
+            setTimeout(() => { copyFeedback.textContent = ''; copyFeedback.classList.remove('text-green-600'); }, 2000);
+        });
+        
+        // Copy code button
+        copyBtn.addEventListener('click', () => {
+            if (codeOutput.value) {
+                codeOutput.select();
+                try {
+                    document.execCommand('copy');
+                    copyFeedback.textContent = 'Copied to clipboard!';
+                    copyFeedback.classList.add('text-green-600');
+                } catch (err) {
+                    copyFeedback.textContent = 'Failed to copy.';
+                    copyFeedback.classList.add('text-red-600');
+                }
+                window.getSelection().removeAllRanges();
+                setTimeout(() => { copyFeedback.textContent = ''; copyFeedback.classList.remove('text-green-600', 'text-red-600'); }, 2000);
+            } else {
+                copyFeedback.textContent = 'Generate code first!';
+                copyFeedback.classList.add('text-red-600');
+                setTimeout(() => { copyFeedback.textContent = ''; copyFeedback.classList.remove('text-red-600'); }, 2000);
+            }
+        });
+
+        // Upload buttons trigger hidden file inputs
+        uploadBtn.addEventListener('click', () => htmlUploadInput.click());
+        uploadCssBtn.addEventListener('click', () => cssUploadInput.click());
+
+        // Handle CSS file selection
+        cssUploadInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentCssContent = e.target.result;
+                updateIframe(); // Reload iframe with new styles
+                copyFeedback.textContent = 'CSS Loaded!';
+                copyFeedback.classList.add('text-green-600');
+                setTimeout(() => { copyFeedback.textContent = ''; copyFeedback.classList.remove('text-green-600'); }, 2000);
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        });
+
+        // Handle HTML file selection
+        htmlUploadInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentHtmlContent = e.target.result;
+                updateIframe(); // Reload iframe with new content
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        });
+        
+        // --- Initial Setup ---
+        previewIframe.onload = makeContentEditable; // Set the handler for all subsequent loads
+        updateIframe(); // Initial load of default content
+
+    </script>
+</body>
+</html>

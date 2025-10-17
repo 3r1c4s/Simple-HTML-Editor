@@ -1,6 +1,6 @@
 # Visual-HTML-Editor
 
-Basic tool that will help make updating text in your HTML file a breeze.
+Basic tool that will help make updating images and text in your HTML file a breeze.
 
 
 To use:
